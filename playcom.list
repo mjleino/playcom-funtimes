@@ -1,0 +1,11 @@
+# put urls of interesting products here
+#
+# format: play.com_url TAB maximum_price
+# 
+# include the cur query parameter to ensure correct currency is used, see the examples
+# 257 = £
+# 258 = €
+# 
+# examples (uncomment to enable them):
+# http://www.play.com/Books/Books/4-/387554/The-Plague/Product.html?cur=258	8
+# http://www.play.com/Music/CD/4-/13067637/Sir-Lucious-Left-Foot-The-Son-Of-Chico-Dusty/Product.html?cur=258	7

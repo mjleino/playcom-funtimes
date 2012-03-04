@@ -1,0 +1,120 @@
+#!/bin/bash
+#
+# monitor play.com for good deals
+#
+# inspiration for bash stuffs: https://github.com/sampula/muumi-dl
+#
+# usage: playcom-watcher.sh [playcom.list]
+# 
+# configuration: 
+#  1) put your email address here
+YOUR_EMAIL=mrgoldnuggets@example.org
+#  2) list interesting products into playcom.list (see it for instructions) 
+#  3) DONE!
+# 
+# TODO:
+#  - currency to the email
+#  - logging? or the very least some output
+
+# checks whether the price is below the limit. supports floating point numbers!
+# usage: deal-is-on price limit
+# returns: 
+# 	0 if price is below the limit
+#	1 if not 
+# 	2 not enough parameters
+deal-is-on () {
+	[ -z $1 ] || [ -z $2 ] && return 2
+	local price=$1
+	local limit=$2
+
+	# && and || are the wrong way round because bc writes 1 to stdout when the expression is true
+	# which is the exact opposite what && and || expect
+	echo "$price < $limit" | bc | exit $(</dev/stdin) &&
+		return 1 ||
+		return 0	
+}
+
+# checks if the notification is already sent for the product
+# usage: already-notified id [list]
+# returns:
+#	0 if id is found on the list of already notified ids
+# 	1 if not
+# 	2 not enough parameters
+already-notified () {
+	[ -z $1 ] && return 2
+	local id=$1
+	local list=${2-playcom.notified}
+
+	[ $(grep -c $id $list) -gt 0 ] &&
+		return 0 ||
+		return 1
+}
+
+# puts the id to the list of notified products
+# usage: add-to-notified id [list]
+add-to-notified () {
+	[ -z $1 ] && return 2
+	local id=$1
+	local list=${2-playcom.notified}
+
+	already-notified $id ||
+		echo $id >> $list
+}
+
+# removes the id from the list of notified products
+# usage: remove-notification id [list]
+remove-notification () {
+	[ -z $1 ] && return 2
+	local id=$1
+	local list=${2-playcom.notified}
+
+	# using sed in place edit without backup presents tiny hazard of losing the list
+	# but in that case all the deals get new notifications (no biggie!)
+	sed -i "" "/$id/d" $list
+}
+
+# sends the notification email
+# usage: notify product price limit url
+notify () {
+	[ -z "$1" ] || 
+		[ -z $2 ] || 
+		[ -z $3 ] || 
+		[ -z $4 ] && return 2
+	local product=$1
+	local price=$2
+	local limit=$3
+	local url=$4
+	
+	sed -e "s/%PRODUCT%/$product/g"\
+		-e "s/%PRICE%/$price/g"\
+	    -e "s/%LIMIT%/$limit/g"\
+	    -e "s|%URL%|$url|g" < playcom.mail | 
+			sendmail -f $YOUR_EMAIL $YOUR_EMAIL
+}
+
+[ "$1" ] && list=$1 || list=$(dirname $0)/playcom.list
+[ -f "$list" ] || {
+	echo "playcom-watcher ERROR: $list not found"
+	exit 1
+}
+
+# strip empty lines and #comments (note verbatim tab in sed expression)
+sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
+	id=$(echo $url | sed -e 's/.*\/\(.*\)\/.*\/Product\.html.*/\1/')
+	product=$(echo $url | sed -e 's/.*\/\(.*\)\/Product\.html.*/\1/' -e 's/-/ /g')
+	#price=$(wget -qO - $url | 
+	price=$(curl -s $url | 
+				grep 'pricePounds' |
+	 			sed -e '1s/.*pricePounds">&#[0-9]\{3,4\};//'\
+	 			    -e 's/<\/span>.*pricePence">//'\
+	 			    -e '$s/<\/span>.*//')
+
+	if deal-is-on $price $limit; then
+		if ! already-notified $id; then
+			notify "$product" $price $limit $url
+			add-to-notified $id
+		fi
+	else
+		remove-notification $id
+	fi
+done
