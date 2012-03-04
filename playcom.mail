@@ -1,6 +1,6 @@
 Subject: playcom-watcher: %PRODUCT%
 
-%PRODUCT% is currently selling for %PRICE% (your limit is %LIMIT%).
+%PRODUCT% is currently selling for %PRICE% %CURRENCY% (your limit is %LIMIT% %CURRENCY%).
 
 Check it out at %URL% !
 

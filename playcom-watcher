@@ -13,8 +13,8 @@ YOUR_EMAIL=mrgoldnuggets@example.org
 #  3) DONE!
 # 
 # TODO:
-#  - currency to the email
 #  - logging? or the very least some output
+#  - no hard limits, just notify when lower price than previously
 
 # checks whether the price is below the limit. supports floating point numbers!
 # usage: deal-is-on price limit
@@ -84,11 +84,18 @@ notify () {
 	local price=$2
 	local limit=$3
 	local url=$4
-	
+
+	# we default arbitrarily to EUR
+	local gbp="cur=257"
+	local eur="cur=258"
+	local currency="EUR"
+	[[ $url = *$gbp* ]] && currency="GBP"
+
 	sed -e "s/%PRODUCT%/$product/g"\
 		-e "s/%PRICE%/$price/g"\
 	    -e "s/%LIMIT%/$limit/g"\
-	    -e "s|%URL%|$url|g" < playcom.mail | 
+	    -e "s|%URL%|$url|g"\
+	    -e "s/%CURRENCY%/$currency/g" < playcom.mail | 
 			sendmail -f $YOUR_EMAIL $YOUR_EMAIL
 }
 
