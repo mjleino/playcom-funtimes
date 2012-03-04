@@ -7,7 +7,7 @@ Emails a notification if a given product's price drops below a set limit.
 
 ## Instructions
 
-1. Setup postfix.
+1. Setup postfix. (You can check if postfix is working by mailing something to yourself: `echo -en "Subject: Love Letter\n\nYou're awesome! Cheers, a secret admirer :-)" | sendmail -f you@example.org you@example.org`.)
 	- [Mac OS X Lion](http://mabblog.com/blog/2011/09/lion-smtp-postfix-relay-and-dreamhost/)
 	- Others, TODO.
 2. Put your URLs and price limits of interesting products to `playcom.list`.
