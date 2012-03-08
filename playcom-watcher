@@ -13,7 +13,6 @@ YOUR_EMAIL=mrgoldnuggets@example.org
 #  3) DONE!
 # 
 # TODO:
-#  - logging? or the very least some output
 #  - no hard limits, just notify when lower price than previously
 
 # checks whether the price is below the limit. supports floating point numbers!
@@ -43,7 +42,7 @@ deal-is-on () {
 already-notified () {
 	[ -z $1 ] && return 2
 	local id=$1
-	local list=${2-playcom.notified}
+	local list=${2-$dir/playcom.notified}
 
 	[ $(grep -c $id $list) -gt 0 ] &&
 		return 0 ||
@@ -55,7 +54,7 @@ already-notified () {
 add-to-notified () {
 	[ -z $1 ] && return 2
 	local id=$1
-	local list=${2-playcom.notified}
+	local list=${2-$dir/playcom.notified}
 
 	already-notified $id ||
 		echo $id >> $list
@@ -66,7 +65,7 @@ add-to-notified () {
 remove-notification () {
 	[ -z $1 ] && return 2
 	local id=$1
-	local list=${2-playcom.notified}
+	local list=${2-$dir/playcom.notified}
 
 	# using sed in place edit without backup presents tiny hazard of losing the list
 	# but in that case all the deals get new notifications (no biggie!)
@@ -95,15 +94,35 @@ notify () {
 		-e "s/%PRICE%/$price/g"\
 	    -e "s/%LIMIT%/$limit/g"\
 	    -e "s|%URL%|$url|g"\
-	    -e "s/%CURRENCY%/$currency/g" < playcom.mail | 
+	    -e "s/%CURRENCY%/$currency/g" < $dir/playcom.mail | 
 			sendmail -f $YOUR_EMAIL $YOUR_EMAIL
+
+	log "EMAILED NOTIFICATION FOR $product TO $YOUR_EMAIL" $logfile
 }
 
-[ "$1" ] && list=$1 || list=$(dirname $0)/playcom.list
+# writes msg to the log
+# usage: log msg [logfile]
+log () {
+	[ -z "$1" ] && return 2
+	local msg=$1
+	local logfile=${2-$logfile}
+
+	echo $(date "+%y-%m-%d %H:%M:%S") $msg >> $logfile
+} 
+
+dir=$(dirname $0)
+
+[ "$1" ] && list=$1 || list=$dir/playcom.list
 [ -f "$list" ] || {
 	echo "playcom-watcher ERROR: $list not found"
 	exit 1
 }
+
+# NOTE: /var/log is not writeable, so if log file is not already presesent just put it to script dir
+logfile=/var/log/playcom.log
+[ -w $logfile ] || logfile=$dir/playcom.log
+
+log "STARTING" $logfile
 
 # strip empty lines and #comments (note verbatim tab in sed expression)
 sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
@@ -116,12 +135,17 @@ sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
 	 			    -e 's/<\/span>.*pricePence">//'\
 	 			    -e '$s/<\/span>.*//')
 
+
 	if deal-is-on $price $limit; then
+		log "FOUND A DEAL! $product ($id) is going at $price :-)"
 		if ! already-notified $id; then
 			notify "$product" $price $limit $url
 			add-to-notified $id
 		fi
 	else
+		log "TOO BAD! $product ($id) at $price is over the limit of $limit"
 		remove-notification $id
 	fi
 done
+
+log "FINISHED" $logfile
