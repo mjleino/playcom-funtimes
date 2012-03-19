@@ -1,6 +1,11 @@
-# put urls of interesting products here
+# put urls of interesting products here.
+# please take care to add a newline after last line.
 #
-# format: play.com_url TAB maximum_price
+# format: play.com_url TAB maximum_price/previous_price NEWLINE
+#
+# maximum_price if automatically updated to currect price, if it drops (but not if it rises).  so you keep on geting notifications whenever price drops.
+#
+# if you omit the maximum/previous price, we automatically fetch&save the _current_ product price on next run.  afters, you get a notification whenever the price drops below the previous price.
 # 
 # include the cur query parameter to ensure correct currency is used, see the examples
 # 257 = £
@@ -8,4 +13,4 @@
 # 
 # examples (uncomment to enable them):
 # http://www.play.com/Books/Books/4-/387554/The-Plague/Product.html?cur=258	8
-# http://www.play.com/Music/CD/4-/13067637/Sir-Lucious-Left-Foot-The-Son-Of-Chico-Dusty/Product.html?cur=258	7
+# http://www.play.com/Music/CD/4-/13067637/Sir-Lucious-Left-Foot-The-Son-Of-Chico-Dusty/Product.html?cur=258

@@ -8,12 +8,13 @@
 # 
 # configuration: 
 #  1) put your email address here
+#     TODO: maybe but it in playcom.mail or someplace where less cognitive editing burden?
 YOUR_EMAIL=mrgoldnuggets@example.org
 #  2) list interesting products into playcom.list (see it for instructions) 
 #  3) DONE!
 # 
 # TODO:
-#  - no hard limits, just notify when lower price than previously
+#  - no hard limits, just notify when lower price than previously [assigned to sampumon]
 
 # checks whether the price is below the limit. supports floating point numbers!
 # usage: deal-is-on price limit
@@ -22,6 +23,7 @@ YOUR_EMAIL=mrgoldnuggets@example.org
 #	1 if not 
 # 	2 not enough parameters
 deal-is-on () {
+	# TODO: this conditional list where || is before && might fail?
 	[ -z $1 ] || [ -z $2 ] && return 2
 	local price=$1
 	local limit=$2
@@ -30,7 +32,25 @@ deal-is-on () {
 	# which is the exact opposite what && and || expect
 	echo "$price < $limit" | bc | exit $(</dev/stdin) &&
 		return 1 ||
-		return 0	
+		return 0
+}
+
+# adds/updates the saved price in playcom.prices
+# usage: update-price id price [playcom.prices]
+# TODO: using sed in place edit presents tiny hazard corrupting the file :) :)
+update-price () {
+	[ "$2" ] || return 2
+	local id=$1
+	local price=$2
+	local list=${3:-$dir/playcom.prices}
+
+	grep -q "^$id.*" $list && {
+		# if price exists, update (all) price instances
+		sed -i.bakup "s/^$id.*/$id\t$price/g" $list
+	} || {
+		# now price was found, add one now
+		echo -e "$id\t$price" >> $list
+	}
 }
 
 # checks if the notification is already sent for the product
@@ -118,11 +138,23 @@ dir=$(dirname $0)
 	exit 1
 }
 
+pricelist=$dir/playcom.prices
+
 # NOTE: /var/log is not writeable, so if log file is not already presesent just put it to script dir
 logfile=/var/log/playcom.log
 [ -w $logfile ] || logfile=$dir/playcom.log
 
 log "STARTING" $logfile
+
+# PROCESS playcom.list & DO THE STUFF
+
+# if playcom.list is updated or playcom.prices not found, reset _all_ saved prices?
+if [ $list -nt $pricelist ]; then
+	cat > $pricelist <<-TAC
+		# this file is automatically added & updated by playcom-wathcer, so
+		# EDIT AT OWN RISK!!!
+	TAC
+fi
 
 # strip empty lines and #comments (note verbatim tab in sed expression)
 sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
@@ -135,16 +167,24 @@ sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
 	 			    -e 's/<\/span>.*pricePence">//'\
 	 			    -e '$s/<\/span>.*//')
 
+	# if old price is saved, use it as limit
+	oldprice=$(grep "^$id.*" $pricelist | cut -f2)
+	[ "$oldprice" ] && limit=$oldprice
 
-	if deal-is-on $price $limit; then
+	if [ -z "$limit" ]; then
+		log "no saved price/limit for $product ($id), saving it now: $price"
+		# NOTE: no notification is sent from this event
+		update-price $id $price
+
+	elif deal-is-on $price $limit; then
 		log "FOUND A DEAL! $product ($id) is going at $price :-)"
-		if ! already-notified $id; then
-			notify "$product" $price $limit $url
-			add-to-notified $id
-		fi
+		notify "$product" $price $limit $url
+		# DEPRECATED: add-to-notified $id
+		update-price $id $price
+
 	else
 		log "TOO BAD! $product ($id) at $price is over the limit of $limit"
-		remove-notification $id
+		# DEPRECATED: remove-notification $id
 	fi
 done
 
