@@ -8,13 +8,9 @@
 # 
 # configuration: 
 #  1) put your email address here
-#     TODO: maybe but it in playcom.mail or someplace where less cognitive editing burden?
 YOUR_EMAIL=mrgoldnuggets@example.org
 #  2) list interesting products into playcom.list (see it for instructions) 
 #  3) DONE!
-# 
-# TODO:
-#  - no hard limits, just notify when lower price than previously [assigned to sampumon]
 
 # checks whether the price is below the limit. supports floating point numbers!
 # usage: deal-is-on price limit
@@ -51,45 +47,6 @@ update-price () {
 		# now price was found, add one now
 		echo -e "$id\t$price" >> $list
 	}
-}
-
-# checks if the notification is already sent for the product
-# usage: already-notified id [list]
-# returns:
-#	0 if id is found on the list of already notified ids
-# 	1 if not
-# 	2 not enough parameters
-already-notified () {
-	[ -z $1 ] && return 2
-	local id=$1
-	local list=${2-$dir/playcom.notified}
-
-	[ $(grep -c $id $list) -gt 0 ] &&
-		return 0 ||
-		return 1
-}
-
-# puts the id to the list of notified products
-# usage: add-to-notified id [list]
-add-to-notified () {
-	[ -z $1 ] && return 2
-	local id=$1
-	local list=${2-$dir/playcom.notified}
-
-	already-notified $id ||
-		echo $id >> $list
-}
-
-# removes the id from the list of notified products
-# usage: remove-notification id [list]
-remove-notification () {
-	[ -z $1 ] && return 2
-	local id=$1
-	local list=${2-$dir/playcom.notified}
-
-	# using sed in place edit without backup presents tiny hazard of losing the list
-	# but in that case all the deals get new notifications (no biggie!)
-	sed -i "" "/$id/d" $list
 }
 
 # sends the notification email
@@ -148,7 +105,7 @@ log "STARTING" $logfile
 
 # PROCESS playcom.list & DO THE STUFF
 
-# if playcom.list is updated or playcom.prices not found, reset _all_ saved prices?
+# if playcom.list is updated or playcom.prices not found, reset _all_ saved prices? (TODO: not _all_)
 if [ $list -nt $pricelist ]; then
 	cat > $pricelist <<-TAC
 		# this file is automatically added & updated by playcom-wathcer, so
@@ -179,12 +136,10 @@ sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
 	elif deal-is-on $price $limit; then
 		log "FOUND A DEAL! $product ($id) is going at $price :-)"
 		notify "$product" $price $limit $url
-		# DEPRECATED: add-to-notified $id
 		update-price $id $price
 
 	else
 		log "TOO BAD! $product ($id) at $price is over the limit of $limit"
-		# DEPRECATED: remove-notification $id
 	fi
 done
 
