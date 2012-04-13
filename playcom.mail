@@ -1,8 +1,6 @@
-Subject: playcom-watcher: %PRODUCT%
+$product is currently selling for $price $currency (was previously / your limit is $limit $currency).
 
-%PRODUCT% is currently selling for %PRICE% %CURRENCY% (was previously / your limit is %LIMIT% %CURRENCY%).
-
-Check it out at %URL% !
+Check it out at $url !
 
 -- your faithful bash script 
  

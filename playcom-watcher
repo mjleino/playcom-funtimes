@@ -2,13 +2,13 @@
 #
 # monitor play.com for good deals
 #
-# inspiration for bash stuffs: https://github.com/sampula/muumi-dl
+# inspiration for bash stuffs: http://github.com/sampula/muumi-dl
 #
 # usage: playcom-watcher.sh [playcom.list]
 # 
 # configuration: 
 #  1) put your email address here
-YOUR_EMAIL=mrgoldnuggets@example.org
+YOUR_EMAIL=mrgoldnuggets@viiksipojat.fi
 #  2) list interesting products into playcom.list (see it for instructions) 
 #  3) DONE!
 
@@ -67,12 +67,9 @@ notify () {
 	local currency="EUR"
 	[[ $url = *$gbp* ]] && currency="GBP"
 
-	sed -e "s/%PRODUCT%/$product/g"\
-		-e "s/%PRICE%/$price/g"\
-	    -e "s/%LIMIT%/$limit/g"\
-	    -e "s|%URL%|$url|g"\
-	    -e "s/%CURRENCY%/$currency/g" < $dir/playcom.mail | 
-			sendmail -f $YOUR_EMAIL $YOUR_EMAIL
+	# TODO: using eval on the template presents a tiny hazard of very bad things happening.
+	eval "echo \"$(<$dir/playcom.mail)\"" | 
+	mail -s "playcom-watcher: $product" $YOUR_EMAIL -- -F "playcom-watcher"
 
 	log "EMAILED NOTIFICATION FOR $product TO $YOUR_EMAIL" $logfile
 }
@@ -107,6 +104,8 @@ log "STARTING" $logfile
 
 # if playcom.list is updated or playcom.prices not found, reset _all_ saved prices? (TODO: not _all_)
 if [ $list -nt $pricelist ]; then
+	log "$list is newer than $pricelist, resetting saved prices"
+
 	cat > $pricelist <<-TAC
 		# this file is automatically added & updated by playcom-wathcer, so
 		# EDIT AT OWN RISK!!!
@@ -139,7 +138,7 @@ sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
 		update-price $id $price
 
 	else
-		log "TOO BAD! $product ($id) at $price is over the limit of $limit"
+		log "TOO BAD! $product ($id) at $price is over or at the limit of $limit"
 	fi
 done
 
