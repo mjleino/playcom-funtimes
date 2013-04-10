@@ -117,11 +117,11 @@ sed 's/#.*//; /^[ 	]*$/d;' $list | while read url limit; do
 	id=$(echo $url | sed -e 's/.*\/\(.*\)\/.*\/Product\.html.*/\1/')
 	product=$(echo $url | sed -e 's/.*\/\(.*\)\/Product\.html.*/\1/' -e 's/-/ /g')
 	#price=$(wget -qO - $url | 
-	price=$(curl -s $url | 
-				grep 'pricePounds' |
-	 			sed -e '1s/.*pricePounds">&#[0-9]\{3,4\};//'\
-	 			    -e 's/<\/span>.*pricePence">//'\
-	 			    -e '$s/<\/span>.*//')
+	price=$(curl -s $url |
+				grep 'price"><strong class' |
+				tr -dc '[:print:]' |
+				sed -e 's/.*&#[0-9]\{3,4\};//'\
+				    -e 's#</[a-z]*>##g')
 
 	# if old price is saved, use it as limit
 	oldprice=$(grep "^$id.*" $pricelist | cut -f2)
